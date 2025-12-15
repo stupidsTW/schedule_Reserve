@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日期資訊處理工具 (整合自動複製與進階篩選)</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; padding: 20px; }
+        h1 { color: #0056b3; }
+        h2 { border-bottom: 2px solid #ccc; padding-bottom: 5px; }
+        .function-section { margin-bottom: 30px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .output-area { background-color: #f4f4f4; border: 1px solid #aaa; padding: 10px; margin-top: 10px; white-space: pre-wrap; word-wrap: break-word; min-height: 50px; }
+        .debug-area { background-color: #ffe; border: 1px dashed #c90; padding: 10px; margin-top: 10px; white-space: pre-wrap; font-size: 0.9em; max-height: 200px; overflow-y: auto; }
+        button { padding: 10px 15px; margin-right: 10px; cursor: pointer; border: none; border-radius: 4px; background-color: #007bff; color: white; transition: background-color 0.3s; }
+        button:hover { background-color: #0056b3; }
+        input[type="text"], textarea, input[type="date"], select { width: 98%; padding: 8px; margin-top: 5px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        label { display: block; font-weight: bold; margin-top: 10px; }
+        .input-group { margin-bottom: 15px; padding: 10px; border: 1px dotted #ccc; }
+        .date-list { margin-top: 10px; padding-left: 20px; }
+        .error-message { color: red; font-weight: bold; margin-top: 5px; }
+        .range-generator { border: 2px solid #007bff; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
+        .range-generator h4 { margin-top: 0; color: #007bff; }
+        .weekday-controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; padding: 5px 0;}
+        .weekday-controls label { font-weight: normal; margin-right: 5px; display: inline-flex; align-items: center;}
+        #copyStatus { padding: 8px; border-radius: 4px; margin-top: 10px; background-color: #f0f0f0; color: #333; }
+        
+        /* 新增：可選取列表樣式 */
+        #selectableDateList {
+            margin-top: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background-color: #fff;
+        }
+        .date-item-row {
+            padding: 5px 0;
+            border-bottom: 1px dotted #eee;
+            display: flex;
+            align-items: center;
+        }
+        .date-item-row:last-child {
+            border-bottom: none;
+        }
+        .date-item-row input[type="checkbox"] {
+            margin-right: 10px;
+            width: auto;
+        }
+        .date-item-row span {
+            flex-grow: 1;
+        }
+        .header-button {
+            background-color: #28a745; /* 綠色 */
+        }
+        .header-button:hover {
+            background-color: #1e7e34;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>📅 日期資訊處理工具 (整合自動複製與進階篩選)</h1>
+
+    <div class="function-section">
+        <h2>主選單</h2>
+        <button onclick="showSection('dateInputSection')">1. 輸入日期與分類 (DATE_1)</button>
+        </div>
+
+    <div id="dateInputSection" class="function-section" style="display:block;">
+        <h2>1. 輸入日期與分類 (DATE_1)</h2>
+
+        <div id="dataItemInput" class="input-group">
+            <h3>輸入資料項目主題與說明</h3>
+            <label for="inputSubject">主題:</label>
+            <input type="text" id="inputSubject" value="會議">
+
+            <label for="inputDescription">說明(用於後續分類):</label>
+            <input type="text" id="inputDescription" value="20251212承辦">
+            
+            <hr>
+
+            <div class="range-generator">
+                <h4>🚀 批量日期產生 (Date Range Generator)</h4>
+                <label for="startDateRange">開始日期 (YYYY/MM/DD):</label>
+                <input type="text" id="startDateRange" placeholder="例如: 2025/12/01" value="2025/12/01">
+
+                <label for="endDateRange">結束日期 (YYYY/MM/DD):</label>
+                <input type="text" id="endDateRange" placeholder="例如: 2025/12/31" value="2025/12/31">
+                
+                <label style="margin-top: 15px;">排除星期幾:</label>
+                <div class="weekday-controls" id="weekdayControls">
+                    </div>
+                
+                <label for="excludedDatesManual">排除指定日期 (YYYY/MM/DD，逗號分隔):</label>
+                <input type="text" id="excludedDatesManual" placeholder="例如: 2025/12/25, 2025/12/30">
+
+                <label for="ampmRange">時段選擇 (AM/PM/AM/PM):</label>
+                <select id="ampmRange">
+                    <option value="am">上午 (AM)</option>
+                    <option value="pm">下午 (PM)</option>
+                    <option value="am/pm">全天 (AM/PM)</option>
+                </select>
+
+                <button onclick="generateAndAddDates()">產生並加入日期列表</button>
+                <div id="rangeStatus" class="error-message"></div>
+            </div>
+
+            <hr>
+
+            <label for="inputDateAmpm">
+                **或手動輸入多行日期與上下午 (每行一個 YYYY/MM/DD,AM/PM 格式)**:
+            </label>
+            <textarea id="inputDateAmpm" rows="3" placeholder="例如: 
+2026/01/05,AM
+2026/01/10,PM"></textarea>
+            
+            <button onclick="addMultipleDates()">手動輸入並加入日期</button>
+            
+            <div id="dateInputStatus" class="error-message"></div>
+            <div id="currentDatesDisplay" class="date-list"></div>
+        </div>
+        <div style="margin-top: 20px;">
+            <button class="header-button" onclick="finishDataItem()">✅ 完成此資料項目並儲存</button>
+            <button onclick="processAllDates()">🔄 重新整理所有彙整資訊</button>
+        </div>
+        
+        <h3 style="margin-top: 30px;">🗓️ 所有資料彙整 (可勾選以排除)</h3>
+        
+        <div style="margin-bottom: 10px;">
+            <button onclick="toggleAllCheckboxes(true)">全選</button>
+            <button onclick="toggleAllCheckboxes(false)">全不選</button>
+        </div>
+
+        <div id="selectableDateList">
+            請先完成資料項目儲存。
+        </div>
+
+        <p id="copyStatus">CSV 內容將會自動複製到剪貼簿。</p>
+
+        <h3 style="margin-top: 30px;">⬇️ 步驟 2: 篩選並生成最終分類結果</h3>
+        <button onclick="filterAndClassifyDates()">執行篩選與分類</button>
+        <button id="downloadClassificationButton" onclick="downloadClassificationCsv()" disabled>
+            ⬇️ 下載分類結果 (YYYYMMDD-schedule.csv)
+        </button>
+
+        <h3>整理後的資料 (依說明分組與日期排序)</h3>
+        <pre class="output-area" id="classificationOutput">請先執行篩選與分類。</pre>
+        
+        <h3 style="margin-top: 30px;">原始 Google Calendar CSV 格式 (供除錯與手動複製)</h3>
+        <pre class="output-area" id="csvOutput"></pre>
+        
+        <h3>除錯資訊 (全域排序後資料)</h3>
+        <div class="debug-area" id="debugOutput"></div>
+    </div>
+
+    <div id="dateClassificationSection" style="display:none;"></div> 
+
+    <script>
+        // --- 全域變數 ---
+        let allDataItems = []; 
+        let currentItemDates = []; 
+        let lastClassificationCsvData = ''; 
+        let currentFullCsvData = ''; // 儲存 processAllDates 產生的完整 CSV 內容
+        
+        // JS Date.getDay() 對應：0=日, 1=一, 2=二, 3=三, 4=四, 5=五, 6=六
+        const WEEKDAYS_ZH = ["日", "一", "二", "三", "四", "五", "六"];
+
+        // --- 工具函數 (保持不變) ---
+
+        function getFormattedDateForFilename() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = (now.getMonth() + 1).toString().padStart(2, '0');
+            const day = now.getDate().toString().padStart(2, '0');
+            return `${year}${month}${day}`;
+        }
+
+        function convertToCsvSafeString(inputString) {
+            if (inputString === null || inputString === undefined) {
+                inputString = "";
+            }
+            inputString = String(inputString); 
+            if (inputString.includes(',') || inputString.includes('"') || inputString.includes('\n')) {
+                return `"${inputString.replace(/"/g, '""')}"`;
+            }
+            return inputString;
+        }
+
+        function parseDateAmpm(dateAmpmString) {
+            const parts = dateAmpmString.split(',');
+            const dateStr = parts[0].trim();
+            const ampm = parts.length > 1 ? parts[1].trim().toLowerCase() : 'am';
+
+            if (ampm !== 'am' && ampm !== 'pm' && ampm !== 'am/pm') {
+                return { error: `上下午資訊錯誤: ${parts.length > 1 ? parts[1] : ''}，請使用 AM 或 PM 或 AM/PM` };
+            }
+
+            const dateParts = dateStr.split('/').map(p => parseInt(p, 10));
+            if (dateParts.length !== 3 || dateParts.some(isNaN)) {
+                 return { error: `日期格式錯誤: ${dateStr}，請使用 YYYY/MM/DD` };
+            }
+
+            const year = dateParts[0];
+            const month = dateParts[1] - 1; 
+            const day = dateParts[2];
+            
+            let hour = 8; 
+            const dateObj = new Date(year, month, day, hour, 0, 0);
+
+            if (dateObj.getFullYear() !== year || dateObj.getMonth() !== month || dateObj.getDate() !== day) {
+                return { error: `無效的日期: ${dateStr}` };
+            }
+            
+            if (ampm === 'pm') {
+                dateObj.setHours(20); 
+                hour = 20;
+            } else if (ampm === 'am/pm') {
+                dateObj.setHours(8); 
+                hour = 8;
+            }
+
+            return { dateObj: dateObj, ampm: ampm, hour: hour };
+        }
+
+        function parseSimpleDate(dateStr) {
+            const dateParts = dateStr.split('/').map(p => parseInt(p, 10));
+            if (dateParts.length !== 3 || dateParts.some(isNaN)) {
+                return null;
+            }
+            const year = dateParts[0];
+            const month = dateParts[1] - 1; 
+            const day = dateParts[2];
+
+            const dateObj = new Date(year, month, day, 0, 0, 0); 
+            
+            if (dateObj.getFullYear() !== year || dateObj.getMonth() !== month || dateObj.getDate() !== day) {
+                return null;
+            }
+            return dateObj;
+        }
+        
+        function triggerDownload(csvContent, filename) {
+            const bom = "\uFEFF"; 
+            const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            
+            if (link.download !== undefined) { 
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", filename);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
+        
+        async function copyToClipboard(text) {
+            const statusElement = document.getElementById('copyStatus');
+            statusElement.textContent = ""; 
+            try {
+                await navigator.clipboard.writeText(text);
+                statusElement.textContent = "✅ CSV 內容已自動複製到剪貼簿。";
+                statusElement.style.color = "green";
+                statusElement.style.backgroundColor = "#e6ffe6";
+                setTimeout(() => {
+                    statusElement.textContent = "CSV 內容將會自動複製到剪貼簿。";
+                    statusElement.style.color = "#333";
+                    statusElement.style.backgroundColor = "#f0f0f0";
+                }, 5000); 
+            } catch (err) {
+                console.error('無法複製到剪貼簿:', err);
+                statusElement.textContent = "❌ 無法自動複製到剪貼簿，請手動複製下方 [原始 Google Calendar CSV 格式] 內容。";
+                statusElement.style.color = "red";
+                statusElement.style.backgroundColor = "#fff0f0";
+            }
+        }
+
+        // --- 介面和邏輯函數 ---
+
+        function generateWeekdayControls() {
+            const container = document.getElementById('weekdayControls');
+            container.innerHTML = ''; 
+
+            WEEKDAYS_ZH.forEach((dayName, index) => {
+                const label = document.createElement('label');
+                const isWeekend = (index === 0 || index === 6); 
+                
+                label.innerHTML = `
+                    <input type="checkbox" id="excludeDay${index}" data-day-index="${index}" ${isWeekend ? 'checked' : ''}>
+                    排除週${dayName}
+                `;
+                container.appendChild(label);
+            });
+        }
+        
+        function showSection(sectionId) {
+            document.getElementById('dateInputSection').style.display = 'none';
+            // 由於整合，dateClassificationSection 隱藏
+            document.getElementById('dateClassificationSection').style.display = 'none';
+            document.getElementById(sectionId).style.display = 'block';
+            
+            if (sectionId === 'dateInputSection') {
+                currentItemDates = [];
+                updateCurrentDatesDisplay();
+                
+                if (allDataItems.length === 0) {
+                     document.getElementById('inputSubject').value = '會議';
+                     document.getElementById('inputDescription').value = '20251212承辦';
+                }
+                
+                document.getElementById('inputDateAmpm').value = '';
+                document.getElementById('dateInputStatus').textContent = '';
+                document.getElementById('rangeStatus').textContent = '';
+                document.getElementById('downloadClassificationButton').disabled = true;
+                document.getElementById('classificationOutput').textContent = '請先執行篩選與分類。';
+                processAllDates(); 
+                generateWeekdayControls(); 
+            } 
+        }
+
+        function updateCurrentDatesDisplay() {
+            // (此函式保持不變)
+            const container = document.getElementById('currentDatesDisplay');
+            container.innerHTML = '<h4>✅ 已加入的日期 (此資料項目):</h4>'; 
+            if (currentItemDates.length === 0) {
+                container.innerHTML += '<p>無日期資訊</p>';
+                return;
+            }
+
+            const ul = document.createElement('ul');
+            const sortedDates = [...currentItemDates].sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime());
+
+            sortedDates.forEach(item => {
+                const li = document.createElement('li');
+                const ampmText = item.ampm.toUpperCase();
+                const dateStr = `${item.dateObj.getFullYear()}/${(item.dateObj.getMonth() + 1).toString().padStart(2, '0')}/${item.dateObj.getDate().toString().padStart(2, '0')}`;
+                const timeStr = item.dateObj.toTimeString().substring(0, 5); 
+                const dayIndex = item.dateObj.getDay(); 
+                li.textContent = `${dateStr} (週${WEEKDAYS_ZH[dayIndex]}), ${ampmText} (${timeStr}) - ${item.subject}`;
+                ul.appendChild(li);
+            });
+            container.appendChild(ul);
+        }
+
+        function generateAndAddDates() {
+             // (此函式保持不變)
+            const startStr = document.getElementById('startDateRange').value.trim();
+            const endStr = document.getElementById('endDateRange').value.trim();
+            const excludedManualStr = document.getElementById('excludedDatesManual').value.trim();
+            const ampmRange = document.getElementById('ampmRange').value;
+            const statusElement = document.getElementById('rangeStatus');
+            const subject = document.getElementById('inputSubject').value.trim();
+            const description = document.getElementById('inputDescription').value.trim();
+            statusElement.textContent = '';
+            
+            if (!subject || !description) {
+                statusElement.textContent = "請先輸入主題和說明。";
+                return;
+            }
+
+            const startDate = parseSimpleDate(startStr);
+            const endDate = parseSimpleDate(endStr);
+
+            if (!startDate || !endDate) {
+                statusElement.textContent = "開始日期或結束日期格式錯誤 (需為 YYYY/MM/DD)。";
+                return;
+            }
+            if (startDate > endDate) {
+                statusElement.textContent = "開始日期必須早於或等於結束日期。";
+                return;
+            }
+
+            const excludedDays = new Set();
+            for(let i = 0; i < 7; i++) {
+                const checkbox = document.getElementById(`excludeDay${i}`);
+                if (checkbox && checkbox.checked) {
+                    excludedDays.add(i);
+                }
+            }
+
+            const excludedDatesSet = new Set();
+            if (excludedManualStr) {
+                const manualDates = excludedManualStr.split(',').map(d => d.trim()).filter(d => d.length > 0);
+                manualDates.forEach(dateStr => {
+                    const dateObj = parseSimpleDate(dateStr);
+                    if (dateObj) {
+                        excludedDatesSet.add(dateObj.toISOString().substring(0, 10)); 
+                    } else {
+                        statusElement.textContent += `排除日期格式錯誤: ${dateStr} 已忽略。\n`;
+                    }
+                });
+            }
+
+            let currentDate = new Date(startDate);
+            let successCount = 0;
+
+            while (currentDate <= endDate) {
+                const currentISODate = currentDate.toISOString().substring(0, 10);
+                const dayOfWeek = currentDate.getDay(); 
+                let isExcluded = false;
+
+                if (excludedDays.has(dayOfWeek)) {
+                    isExcluded = true;
+                }
+                
+                if (excludedDatesSet.has(currentISODate)) {
+                    isExcluded = true;
+                }
+
+                if (!isExcluded) {
+                    const dateStrForParse = `${currentDate.getFullYear()}/${currentDate.getMonth() + 1}/${currentDate.getDate()},${ampmRange}`;
+                    const result = parseDateAmpm(dateStrForParse);
+
+                    if (!result.error) {
+                        const dateInfo = {
+                            dateObj: result.dateObj,
+                            ampm: ampmRange,
+                            timeslotHour: result.hour,
+                            subject: subject,
+                            description: description
+                        };
+                        currentItemDates.push(dateInfo);
+                        successCount++;
+                    }
+                }
+
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+
+            updateCurrentDatesDisplay();
+            statusElement.textContent = `成功產生並加入了 ${successCount} 個符合條件的日期。`;
+        }
+
+        function addMultipleDates() {
+             // (此函式保持不變)
+            const input = document.getElementById('inputDateAmpm').value;
+            const subject = document.getElementById('inputSubject').value.trim();
+            const description = document.getElementById('inputDescription').value.trim();
+            const statusElement = document.getElementById('dateInputStatus');
+            statusElement.textContent = ''; 
+
+            if (!subject || !description) {
+                statusElement.textContent = "請先輸入主題和說明。";
+                return;
+            }
+            if (!input.trim()) {
+                statusElement.textContent = "日期輸入框不可為空。";
+                return;
+            }
+
+            const inputLines = input.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+            let successCount = 0;
+            let errorMessages = [];
+
+            inputLines.forEach((line, index) => {
+                const normalizedLine = line.includes(',') ? line : `${line},am`; 
+                const result = parseDateAmpm(normalizedLine);
+
+                if (result.error) {
+                    errorMessages.push(`第 ${index + 1} 行 (${line}): ${result.error}`);
+                    return;
+                }
+
+                const dateInfo = {
+                    dateObj: result.dateObj,
+                    ampm: result.ampm,
+                    timeslotHour: result.hour,
+                    subject: subject,
+                    description: description
+                };
+
+                currentItemDates.push(dateInfo);
+                successCount++;
+            });
+
+            updateCurrentDatesDisplay();
+            
+            if (errorMessages.length > 0) {
+                statusElement.textContent = `成功加入 ${successCount} 個日期。以下是錯誤列表:\n${errorMessages.join('\n')}`;
+            } else if (successCount > 0) {
+                statusElement.textContent = `成功加入所有 ${successCount} 個日期。`;
+            } else {
+                 statusElement.textContent = `沒有成功的日期輸入。`;
+            }
+            document.getElementById('inputDateAmpm').value = ''; 
+        }
+        
+        /**
+         * 完成當前資料項目，儲存到 allDataItems，並立即更新 CSV 彙整結果。
+         */
+        function finishDataItem() {
+            const subject = document.getElementById('inputSubject').value.trim();
+            const description = document.getElementById('inputDescription').value.trim();
+
+            if (!subject || !description) {
+                alert("主題或說明不可為空。");
+                return;
+            }
+            
+            if (currentItemDates.length === 0) {
+                 alert("請先加入至少一個日期，再儲存此資料項目。");
+                 return;
+            }
+
+
+            // 1. 儲存當前的資料項目
+            allDataItems.push({
+                subject: subject,
+                description: description,
+                dateInfo: [...currentItemDates] 
+            });
+
+            // 2. 清理當前輸入區域，準備輸入下一個項目
+            currentItemDates = [];
+            document.getElementById('inputDateAmpm').value = '';
+            updateCurrentDatesDisplay(); 
+            document.getElementById('dateInputStatus').textContent = '';
+            document.getElementById('rangeStatus').textContent = '';
+            
+            // 3. 立即呼叫 processAllDates() 來更新和顯示所有的彙整資料
+            processAllDates(); 
+            
+            alert(`資料項目已儲存 (目前共有 ${allDataItems.length} 個項目)。所有資料彙整資訊已更新。`);
+        }
+
+        /**
+         * 處理所有已儲存的日期，生成 CSV，儲存到 currentFullCsvData，並繪製可選列表。
+         */
+        function processAllDates() {
+            
+            if (allDataItems.length === 0) {
+                document.getElementById('csvOutput').textContent = "沒有任何已儲存的資料項目。";
+                document.getElementById('debugOutput').textContent = "沒有任何已儲存的資料項目。";
+                document.getElementById('selectableDateList').innerHTML = '無資料可選取。';
+                copyToClipboard(""); 
+                return;
+            }
+
+            let globalDateInfoArray = [];
+            allDataItems.forEach(dataItem => {
+                globalDateInfoArray.push(...dataItem.dateInfo);
+            });
+
+            const sortedGlobalDateInfoArray = globalDateInfoArray.sort((a, b) => {
+                return a.dateObj.getTime() - b.dateObj.getTime();
+            });
+
+            let debugOutput = "--- 除錯資訊：全域排序後資料 ---\n";
+            let csvOutput = "Start date,Subject,All Day Event,Description\n";
+            const selectableListContainer = document.getElementById('selectableDateList');
+            selectableListContainer.innerHTML = '';
+            
+            // 繪製可選列表
+            sortedGlobalDateInfoArray.forEach((info, index) => {
+                const dateString = `${info.dateObj.getFullYear()}/${(info.dateObj.getMonth() + 1).toString().padStart(2, '0')}/${info.dateObj.getDate().toString().padStart(2, '0')}`;
+                
+                // 決定 CSV 中的主題 (包含 AM/PM)
+                const subjectForCsv = info.ampm.toUpperCase() ? `${info.ampm.toUpperCase()}-${info.subject}` : info.subject;
+
+                // 準備 CSV 行
+                const safeDate = convertToCsvSafeString(dateString);
+                const safeSubject = convertToCsvSafeString(subjectForCsv);
+                const safeDescription = convertToCsvSafeString(info.description);
+                const safeAllDayEvent = convertToCsvSafeString("TRUE");
+                
+                const csvLine = `${safeDate},${safeSubject},${safeAllDayEvent},${safeDescription}`;
+                csvOutput += csvLine + "\n";
+                
+                // 準備列表顯示
+                const displayTime = info.ampm.toUpperCase();
+                const displaySubject = info.subject;
+                const displayDescription = info.description;
+                const displayFullText = `${dateString} (${displayTime}) - ${displaySubject} [${displayDescription}]`;
+
+                const row = document.createElement('div');
+                row.className = 'date-item-row';
+                row.innerHTML = `
+                    <input type="checkbox" id="dateCheck${index}" data-csv-line="${encodeURIComponent(csvLine)}" checked>
+                    <label for="dateCheck${index}"><span>${displayFullText}</span></label>
+                `;
+                selectableListContainer.appendChild(row);
+
+                debugOutput += `  日期物件: ${dateString} ${info.dateObj.toTimeString().substring(0, 8)}, 上下午: ${info.ampm}, 主題: ${info.subject}, 說明: ${info.description}\n`;
+            });
+            
+            document.getElementById('debugOutput').textContent = debugOutput;
+            document.getElementById('csvOutput').textContent = csvOutput;
+            currentFullCsvData = csvOutput; // 儲存完整的 CSV 供備用
+            
+            copyToClipboard(csvOutput);
+        }
+
+        /**
+         * 🎯 新增: 處理勾選框的狀態
+         */
+        function toggleAllCheckboxes(checked) {
+            const checkboxes = document.querySelectorAll('#selectableDateList input[type="checkbox"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = checked;
+            });
+        }
+        
+        /**
+         * 🎯 新增: 篩選勾選的日期並進行分類 (原 DATE_2 核心邏輯)
+         */
+        function filterAndClassifyDates() {
+            const checkboxes = document.querySelectorAll('#selectableDateList input[type="checkbox"]');
+            let filteredRawData = '';
+            let successCount = 0;
+
+            checkboxes.forEach(checkbox => {
+                if (checkbox.checked) {
+                    const csvLine = decodeURIComponent(checkbox.getAttribute('data-csv-line'));
+                    filteredRawData += csvLine + '\n';
+                    successCount++;
+                }
+            });
+
+            if (successCount === 0) {
+                 document.getElementById('classificationOutput').textContent = "沒有勾選任何日期，無法進行分類。";
+                 document.getElementById('downloadClassificationButton').disabled = true;
+                 return;
+            }
+            
+            // 以下是原 DATE_2 的分類邏輯，現在對篩選後的 filteredRawData 執行
+            
+            const dataLines = filteredRawData.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+            
+            let classifiedData = {}; 
+            let classificationCount = 0;
+
+            dataLines.forEach(line => {
+                // CSV 解析邏輯需要考慮逗號在雙引號內的情況，但我們假設原始輸入是乾淨的
+                const fields = line.split(',');
+                if (fields.length >= 4) {
+                    const dateStr = fields[0].trim(); 
+                    const subjectWithAmpm = fields[1].trim(); 
+                    const description = fields[3].trim().replace(/"/g, ''); // 移除雙引號
+
+                    let ampm = "";
+                    let subject = subjectWithAmpm;
+                    
+                    const ampmMatch = subjectWithAmpm.match(/^(am|pm|am\/pm)-/i);
+                    if (ampmMatch) {
+                        ampm = ampmMatch[1].toLowerCase();
+                        subject = subjectWithAmpm.substring(ampmMatch[0].length); 
+                    }
+                    
+                    const parseResult = parseDateAmpm(dateStr + (ampm ? `,${ampm}` : `,am`)); 
+                    
+                    if (parseResult.error) {
+                         // 忽略解析錯誤的行
+                        return; 
+                    }
+
+                    const dateObj = parseResult.dateObj;
+                    
+                    if (!classifiedData[description]) {
+                        classifiedData[description] = [];
+                    }
+                    
+                    classifiedData[description].push({
+                        date: dateObj,
+                        timeslot: ampm, 
+                        subject: subject, 
+                        description: description 
+                    });
+                    classificationCount++;
+                }
+            });
+
+            let outputText = `--- 整理後的資料 (共 ${classificationCount} 筆) ---\n`;
+            let csvData = "Start date,Subject,All Day Event,Description\n"; 
+            
+            const sortedDescriptions = Object.keys(classifiedData).sort();
+
+            sortedDescriptions.forEach(descName => {
+                outputText += `\n說明: ${descName}\n`;
+                
+                const sortedDates = classifiedData[descName].sort((a, b) => {
+                    if (a.date.getTime() !== b.date.getTime()) {
+                        return a.date.getTime() - b.date.getTime(); 
+                    }
+                    return a.date.getHours() - b.date.getHours();
+                });
+
+                sortedDates.forEach(data => {
+                    const formattedDate = `${data.date.getFullYear()}/${(data.date.getMonth() + 1).toString().padStart(2, '0')}/${data.date.getDate().toString().padStart(2, '0')}`;
+                    const formattedTimeslot = data.timeslot ? data.timeslot.toUpperCase() : "";
+
+                    if (formattedTimeslot) {
+                        outputText += `${formattedDate} ${formattedTimeslot}- ${data.subject}\n`;
+                    } else {
+                        outputText += `${formattedDate} ${data.subject}\n`;
+                    }
+                    
+                    const subjectForCsv = formattedTimeslot ? `${formattedTimeslot}-${data.subject}` : data.subject;
+                    
+                    const safeDate = convertToCsvSafeString(formattedDate);
+                    const safeSubject = convertToCsvSafeString(subjectForCsv);
+                    const safeAllDayEvent = convertToCsvSafeString("TRUE");
+                    const safeDescription = convertToCsvSafeString(data.description);
+
+                    csvData += `${safeDate},${safeSubject},${safeAllDayEvent},${safeDescription}\n`;
+                });
+            });
+            
+            document.getElementById('classificationOutput').textContent = outputText;
+
+            if (classificationCount > 0) {
+                 lastClassificationCsvData = csvData; 
+                 document.getElementById('downloadClassificationButton').disabled = false; 
+                 alert(`日期篩選與分類已完成，成功處理 ${classificationCount} 筆資料。`);
+            } else {
+                 document.getElementById('downloadClassificationButton').disabled = true;
+                 alert("沒有解析出有效的資料，請檢查勾選狀態。");
+            }
+        }
+        
+        /**
+         * 執行下載動作 (使用分類後的 CSV 內容)
+         */
+        function downloadClassificationCsv() {
+            if (lastClassificationCsvData) {
+                const filenameDate = getFormattedDateForFilename();
+                triggerDownload(lastClassificationCsvData, `${filenameDate}-schedule.csv`);
+            } else {
+                alert("沒有可供下載的分類資料。請先執行 '執行篩選與分類'。");
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            generateWeekdayControls(); 
+            showSection('dateInputSection');
+        });
+    </script>
+</body>
+</html>
