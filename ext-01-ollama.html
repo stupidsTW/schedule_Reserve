@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>Ollama 時間格式化</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 700px; margin: 50px auto; line-height: 1.6; color: #333; }
+        .card { background: #fff; border-radius: 12px; border: 1px solid #eaeaea; padding: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        h3 { margin-top: 0; color: #1a1a1a; }
+        textarea { width: 100%; height: 120px; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; margin-bottom: 15px; box-sizing: border-box; }
+        button { background-color: #007AFF; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 16px; cursor: pointer; transition: background 0.2s; }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        #output { margin-top: 25px; padding: 20px; background: #f9f9f9; border-radius: 8px; border-left: 4px solid #007AFF; min-height: 60px; white-space: pre-wrap; font-family: "SFMono-Regular", Consolas, monospace; }
+        .status { font-size: 14px; color: #666; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h3>Ollama 時間提取器</h3>
+    <textarea id="inputArea" placeholder="輸入文字內容... (例如：明天下午兩點與下週一上午)"></textarea>
+    <button id="runBtn">執行任務</button>
+    
+    <div id="output">結果將顯示於此...</div>
+    <div id="status" class="status"></div>
+</div>
+
+<script>
+    // Ollama 配置
+    const CONFIG = {
+        API_BASE: "http://127.0.0.1:11434/api/chat",
+        MODEL: "ministral-3:8b"
+    };
+
+    const runBtn = document.getElementById('runBtn');
+    const inputArea = document.getElementById('inputArea');
+    const outputDiv = document.getElementById('output');
+    const statusDiv = document.getElementById('status');
+
+    runBtn.addEventListener('click', async () => {
+        const text = inputArea.value.trim();
+        if (!text) return;
+
+        // 初始化狀態
+        runBtn.disabled = true;
+        outputDiv.innerText = "處理中...";
+        statusDiv.innerText = "正在調用 Ollama (Ministral-3:8B)...";
+
+        const payload = {
+            model: CONFIG.MODEL,
+            messages: [
+                { 
+                    role: "system", 
+                    content: "你是一個專業的數據格式化工具。請從用戶輸入的文字中提取所有日期與時間資訊。輸出格式嚴格遵守：YYYY/MM/DD,AM/PM。如果原始文字未提及年份，預設為 2026。每一個 AM 或 PM 標記視為獨立的一筆資料,分行輸出。嚴禁輸出任何解釋性文字、標題或符號,只輸出結果。若文中無時間資訊,請回傳空值。" 
+                },
+                { 
+                    role: "user", 
+                    content: text 
+                }
+            ],
+            stream: false,
+            options: {
+                temperature: 0.0
+            }
+        };
+
+        try {
+            const response = await fetch(CONFIG.API_BASE, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) throw new Error(`HTTP 錯誤! 狀態碼: ${response.status}`);
+
+            const data = await response.json();
+            const content = data.message.content.trim();
+            
+            outputDiv.innerText = content || "無時間資訊";
+            statusDiv.innerText = "完成。";
+        } catch (error) {
+            console.error(error);
+            outputDiv.innerText = "錯誤: " + error.message;
+            statusDiv.innerText = "連線失敗，請檢查 Ollama 是否在 11434 端口運行。";
+        } finally {
+            runBtn.disabled = false;
+        }
+    });
+</script>
+
+</body>
+</html>
